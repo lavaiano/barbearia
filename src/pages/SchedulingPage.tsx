@@ -283,22 +283,29 @@ const SchedulingPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedBarbeiro || !selectedServico || !selectedDate || !selectedTime || !nome || !telefone) {
-      alert('Por favor, preencha todos os campos');
+    if (!selectedDate || !selectedTime) {
+      setError('Por favor, selecione uma data e horário válidos');
       return;
     }
 
     try {
-      setLoading(true);
-      
-      // Buscar informações do barbeiro selecionado
-      const { data: barbeiroData, error: barbeiroError } = await supabase
+      // Verificar se o usuário está autenticado
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Usuário não está autenticado');
+      }
+
+      // Buscar informações do barbeiro
+      const { data: barberData, error: barberError } = await supabase
         .from('barbeiros')
         .select('nome, telefone')
         .eq('id', selectedBarbeiro)
         .single();
 
-      if (barbeiroError) throw barbeiroError;
+      if (barberError) {
+        console.error('Erro ao buscar dados do barbeiro:', barberError);
+        throw barberError;
+      }
 
       // Buscar informações do serviço
       const servico = servicos.find(s => s.id === selectedServico);
@@ -320,19 +327,38 @@ const SchedulingPage: React.FC = () => {
       const dataFormatada = format(dataAgendamento, 'dd/MM/yyyy', { locale: ptBR });
       const horaFormatada = format(dataAgendamento, 'HH:mm', { locale: ptBR });
 
-      // Salvar o agendamento usando a data UTC
-      const { error: agendamentoError } = await supabase
+      // Inserir o agendamento
+      const { error: insertError } = await supabase
         .from('agendamentos')
         .insert([{
-          barbeiro_id: selectedBarbeiro,
-          servico_id: selectedServico,
           data: dataUTC.toISOString(),
           nome_cliente: nome,
           telefone_cliente: telefone,
+          barbeiro_id: selectedBarbeiro,
+          servico_id: selectedServico,
           status: 'pendente'
         }]);
 
-      if (agendamentoError) throw agendamentoError;
+      if (insertError) {
+        console.error('Erro ao inserir agendamento:', insertError);
+        throw insertError;
+      }
+
+      // Formatar a data para a mensagem
+      const formattedDate = format(dataAgendamento, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+
+      // Preparar a mensagem do WhatsApp
+      const message = `Olá ${barberData.nome}! Você tem um novo agendamento:\n\n` +
+        `Cliente: ${nome}\n` +
+        `Telefone: ${telefone}\n` +
+        `Data: ${formattedDate}\n` +
+        `Serviço: ${servico?.nome || 'Não especificado'}`;
+
+      // Criar o link do WhatsApp
+      const whatsappLink = `https://wa.me/${barberData.telefone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+
+      // Abrir o WhatsApp em uma nova aba
+      window.open(whatsappLink, '_blank');
 
       // Primeiro exibir o Snackbar
       setOpenSnackbar(true);
@@ -343,38 +369,15 @@ const SchedulingPage: React.FC = () => {
         setAgendamentoConcluido({
           data: dataFormatada,
           hora: horaFormatada,
-          barbeiro: barbeiroData.nome,
+          barbeiro: barberData.nome,
           servico: servico?.nome || '',
           valor: servico?.preco || 0
         });
       }, 500);
 
-      // Formatar o número do barbeiro (remover caracteres especiais)
-      const telefoneBarbeiro = barbeiroData.telefone.replace(/\D/g, '');
-
-      // Montar a mensagem para o barbeiro
-      const mensagem = encodeURIComponent(
-        `Olá ${barbeiroData.nome}! Você tem um novo agendamento:\n\n` +
-        `📅 Data: ${dataFormatada}\n` +
-        `⏰ Horário: ${horaFormatada}\n` +
-        `👤 Cliente: ${nome}\n` +
-        `📱 Telefone: ${telefone}\n` +
-        `💇‍♂️ Serviço: ${servico?.nome}\n` +
-        `💰 Valor: R$ ${servico?.preco.toFixed(2)}\n\n` +
-        `Status: Aguardando confirmação`
-      );
-
-      // Abrir WhatsApp do barbeiro em nova aba
-      window.open(
-        `https://wa.me/55${telefoneBarbeiro}?text=${mensagem}`,
-        '_blank'
-      );
-
-    } catch (err) {
-      console.error('Erro ao agendar:', err);
-      alert('Erro ao realizar agendamento. Tente novamente.');
-    } finally {
-      setLoading(false);
+    } catch (error: any) {
+      console.error('Erro ao criar agendamento:', error);
+      setError(error.message || 'Erro ao criar agendamento');
     }
   };
 

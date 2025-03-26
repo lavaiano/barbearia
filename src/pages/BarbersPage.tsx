@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Typography,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
   Paper,
   Table,
   TableBody,
@@ -9,25 +14,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   TextField,
-  IconButton,
-  Alert,
+  Typography,
   Snackbar,
-  Grid,
-  InputAdornment,
-  Avatar
+  Alert,
+  InputAdornment
 } from '@mui/material';
-import {
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Add as AddIcon,
-  PhotoCamera
-} from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { supabase } from '../services/supabase';
 import InputMask from 'react-input-mask';
 
