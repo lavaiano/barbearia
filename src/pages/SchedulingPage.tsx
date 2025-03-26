@@ -289,12 +289,6 @@ const SchedulingPage: React.FC = () => {
     }
 
     try {
-      // Verificar se o usuário está autenticado
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Usuário não está autenticado');
-      }
-
       // Buscar informações do barbeiro
       const { data: barberData, error: barberError } = await supabase
         .from('barbeiros')
