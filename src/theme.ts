@@ -154,27 +154,14 @@ export const theme = createTheme({
         },
       },
     },
-    MuiPickersDay: {
-      styleOverrides: {
-        root: {
-          color: '#e7e9ea',
-          '&.Mui-selected': {
-            backgroundColor: '#1d9bf0',
-            '&:hover': {
-              backgroundColor: '#1a8cd8',
-            },
-          },
-          '&:hover': {
-            backgroundColor: 'rgba(29, 155, 240, 0.1)',
-          },
-        },
-      },
-    },
     MuiCalendarPicker: {
       styleOverrides: {
         root: {
-          backgroundColor: '#000000',
+          backgroundColor: '#15202b',
           color: '#e7e9ea',
+          '& .MuiPickersCalendarHeader-root': {
+            color: '#e7e9ea',
+          },
         },
       },
     },
@@ -182,12 +169,6 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           color: '#e7e9ea',
-        },
-        iconButton: {
-          color: '#71767b',
-          '&:hover': {
-            backgroundColor: 'rgba(29, 155, 240, 0.1)',
-          },
         },
       },
     },

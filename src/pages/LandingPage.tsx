@@ -8,14 +8,13 @@ import {
   Card,
   CardContent,
   CardMedia,
-  Stack,
   useTheme,
   useMediaQuery,
   IconButton,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
-import { AccessTime, LocalOffer, Star, EmojiEvents } from '@mui/icons-material';
+import { LocalOffer, Star } from '@mui/icons-material';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import FacebookIcon from '@mui/icons-material/Facebook';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
@@ -23,7 +22,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { useAuth } from '../contexts/AuthContext';
 
-const FeatureCard = styled(Card)(({ theme }) => ({
+const FeatureCard = styled(Card)(() => ({
   height: '100%',
   transition: 'transform 0.3s ease-in-out',
   '&:hover': {
@@ -31,7 +30,7 @@ const FeatureCard = styled(Card)(({ theme }) => ({
   },
 }));
 
-const ServiceCard = styled(Card)(({ theme }) => ({
+const ServiceCard = styled(Card)(() => ({
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
@@ -41,7 +40,7 @@ const ServiceCard = styled(Card)(({ theme }) => ({
   },
 }));
 
-const SocialButton = styled(IconButton)(({ theme }) => ({
+const SocialButton = styled(IconButton)(() => ({
   color: '#1a1a1a',
   margin: '0 8px',
   '&:hover': {

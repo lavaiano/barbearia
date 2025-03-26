@@ -35,6 +35,7 @@ interface Appointment {
   data: string;
   nome_cliente: string;
   telefone_cliente: string;
+  status: string;
   barbeiro: {
     nome: string;
   };
@@ -42,7 +43,6 @@ interface Appointment {
     nome: string;
     preco: number;
   };
-  status: string;
 }
 
 interface Barber {
@@ -113,8 +113,13 @@ const ReportsPage: React.FC = () => {
           nome_cliente,
           telefone_cliente,
           status,
-          barbeiro:barbeiro_id(nome),
-          servico:servico_id(nome, preco)
+          barbeiro:barbeiro_id (
+            nome
+          ),
+          servico:servico_id (
+            nome,
+            preco
+          )
         `)
         .gte('data', start.toISOString())
         .lte('data', end.toISOString());
@@ -127,7 +132,15 @@ const ReportsPage: React.FC = () => {
       const { data, error } = await query.order('data', { ascending: true });
 
       if (error) throw error;
-      setAppointments(data || []);
+      setAppointments(data.map((appointment: any) => ({
+        id: appointment.id,
+        data: appointment.data,
+        nome_cliente: appointment.nome_cliente,
+        telefone_cliente: appointment.telefone_cliente,
+        status: appointment.status,
+        barbeiro: appointment.barbeiro,
+        servico: appointment.servico
+      })));
     } catch (error) {
       console.error('Erro ao buscar agendamentos:', error);
       showSnackbar('Erro ao carregar agendamentos', 'error');
