@@ -17,27 +17,34 @@ import {
   TextField,
   IconButton,
   Alert,
-  Snackbar
+  Snackbar,
+  Grid,
+  InputAdornment,
+  Avatar
 } from '@mui/material';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Add as AddIcon
+  Add as AddIcon,
+  PhotoCamera
 } from '@mui/icons-material';
 import { supabase } from '../services/supabase';
+import InputMask from 'react-input-mask';
 
 interface Barber {
-  id: string;
+  id: number;
   nome: string;
   telefone: string;
+  email: string;
   ativo: boolean;
+  foto?: string;
 }
 
 const BarbersPage: React.FC = () => {
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
-  const [formData, setFormData] = useState({ nome: '', telefone: '' });
+  const [formData, setFormData] = useState({ nome: '', telefone: '', email: '', foto: '' });
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
   useEffect(() => {
@@ -62,10 +69,10 @@ const BarbersPage: React.FC = () => {
   const handleOpenDialog = (barber?: Barber) => {
     if (barber) {
       setSelectedBarber(barber);
-      setFormData({ nome: barber.nome, telefone: barber.telefone });
+      setFormData({ nome: barber.nome, telefone: barber.telefone, email: barber.email, foto: barber.foto || '' });
     } else {
       setSelectedBarber(null);
-      setFormData({ nome: '', telefone: '' });
+      setFormData({ nome: '', telefone: '', email: '', foto: '' });
     }
     setOpenDialog(true);
   };
@@ -73,44 +80,61 @@ const BarbersPage: React.FC = () => {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setSelectedBarber(null);
-    setFormData({ nome: '', telefone: '' });
+    setFormData({ nome: '', telefone: '', email: '', foto: '' });
   };
 
   const showSnackbar = (message: string, severity: 'success' | 'error') => {
     setSnackbar({ open: true, message, severity });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
+      // Verificar se o usuário está autenticado
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Usuário não está autenticado');
+      }
+
       if (selectedBarber) {
         const { error } = await supabase
           .from('barbeiros')
           .update({
             nome: formData.nome,
-            telefone: formData.telefone
+            telefone: formData.telefone,
+            email: formData.email,
+            ativo: true,
+            foto: formData.foto
           })
           .eq('id', selectedBarber.id);
 
-        if (error) throw error;
-        showSnackbar('Barbeiro atualizado com sucesso!', 'success');
+        if (error) {
+          console.error('Erro ao atualizar:', error);
+          throw error;
+        }
       } else {
         const { error } = await supabase
           .from('barbeiros')
           .insert([{
             nome: formData.nome,
             telefone: formData.telefone,
-            ativo: true
+            email: formData.email,
+            ativo: true,
+            foto: formData.foto
           }]);
 
-        if (error) throw error;
-        showSnackbar('Barbeiro cadastrado com sucesso!', 'success');
+        if (error) {
+          console.error('Erro ao inserir:', error);
+          throw error;
+        }
       }
 
       handleCloseDialog();
       fetchBarbers();
-    } catch (error) {
+      showSnackbar(`Barbeiro ${selectedBarber ? 'atualizado' : 'cadastrado'} com sucesso!`, 'success');
+    } catch (error: any) {
       console.error('Erro ao salvar barbeiro:', error);
-      showSnackbar('Erro ao salvar barbeiro', 'error');
+      showSnackbar(error.message || 'Erro ao salvar barbeiro', 'error');
     }
   };
 
@@ -130,6 +154,68 @@ const BarbersPage: React.FC = () => {
     } catch (error) {
       console.error('Erro ao atualizar status do barbeiro:', error);
       showSnackbar('Erro ao atualizar status do barbeiro', 'error');
+    }
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      // Verificar se o usuário está autenticado
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Usuário não está autenticado');
+      }
+
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      // Upload da imagem para o bucket
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      console.log('Iniciando upload do arquivo:', fileName);
+
+      const { error: uploadError, data } = await supabase.storage
+        .from('fotosbarbeiros')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('Erro no upload:', uploadError);
+        throw uploadError;
+      }
+
+      console.log('Upload concluído:', data);
+
+      // Obter a URL pública da imagem
+      const { data: { publicUrl } } = supabase.storage
+        .from('fotosbarbeiros')
+        .getPublicUrl(filePath);
+
+      console.log('URL pública da imagem:', publicUrl);
+
+      // Atualizar o barbeiro com a URL da foto
+      if (selectedBarber) {
+        const { error: updateError } = await supabase
+          .from('barbeiros')
+          .update({ foto: publicUrl })
+          .eq('id', selectedBarber.id);
+
+        if (updateError) {
+          console.error('Erro ao atualizar foto:', updateError);
+          throw updateError;
+        }
+
+        // Atualizar o estado local
+        setSelectedBarber(prev => prev ? { ...prev, foto: publicUrl } : null);
+        setFormData(prev => ({ ...prev, foto: publicUrl }));
+      } else {
+        setFormData(prev => ({ ...prev, foto: publicUrl }));
+      }
+
+      showSnackbar('Foto atualizada com sucesso!', 'success');
+    } catch (error: any) {
+      console.error('Erro ao fazer upload da foto:', error);
+      showSnackbar(error.message || 'Erro ao fazer upload da foto', 'error');
     }
   };
 
@@ -158,8 +244,10 @@ const BarbersPage: React.FC = () => {
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell sx={{ color: '#e7e9ea', fontWeight: 'bold' }}>Foto</TableCell>
               <TableCell sx={{ color: '#e7e9ea', fontWeight: 'bold' }}>Nome</TableCell>
               <TableCell sx={{ color: '#e7e9ea', fontWeight: 'bold' }}>Telefone</TableCell>
+              <TableCell sx={{ color: '#e7e9ea', fontWeight: 'bold' }}>Email</TableCell>
               <TableCell sx={{ color: '#e7e9ea', fontWeight: 'bold' }}>Status</TableCell>
               <TableCell sx={{ color: '#e7e9ea', fontWeight: 'bold' }}>Ações</TableCell>
             </TableRow>
@@ -167,8 +255,48 @@ const BarbersPage: React.FC = () => {
           <TableBody>
             {barbers.map((barber) => (
               <TableRow key={barber.id}>
+                <TableCell>
+                  {barber.foto ? (
+                    <Box sx={{ width: 50, height: 50, position: 'relative' }}>
+                      <img 
+                        src={barber.foto} 
+                        alt={barber.nome}
+                        onError={(e) => {
+                          console.error('Erro ao carregar imagem:', e);
+                          console.log('URL da imagem que falhou:', barber.foto);
+                          // Tentar recarregar a imagem com a URL completa
+                          const img = e.target as HTMLImageElement;
+                          if (img && barber.foto) {
+                            img.src = barber.foto;
+                          }
+                        }}
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          borderRadius: '50%', 
+                          objectFit: 'cover',
+                          display: 'block'
+                        }}
+                        crossOrigin="anonymous"
+                      />
+                    </Box>
+                  ) : (
+                    <Box sx={{ 
+                      width: 50, 
+                      height: 50, 
+                      borderRadius: '50%', 
+                      bgcolor: '#2f3336', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center' 
+                    }}>
+                      <Typography sx={{ color: '#71767b' }}>{barber.nome.charAt(0)}</Typography>
+                    </Box>
+                  )}
+                </TableCell>
                 <TableCell sx={{ color: '#e7e9ea' }}>{barber.nome}</TableCell>
                 <TableCell sx={{ color: '#e7e9ea' }}>{barber.telefone}</TableCell>
+                <TableCell sx={{ color: '#e7e9ea' }}>{barber.email}</TableCell>
                 <TableCell sx={{ color: '#e7e9ea' }}>
                   <Typography
                     sx={{
@@ -238,11 +366,40 @@ const BarbersPage: React.FC = () => {
               }
             }}
           />
+          <InputMask
+            mask="(99) 99999-9999"
+            value={formData.telefone}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, telefone: e.target.value })}
+          >
+            {(inputProps: any) => (
+              <TextField
+                {...inputProps}
+                fullWidth
+                label="Telefone"
+                required
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">📱</InputAdornment>,
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    color: '#e7e9ea',
+                    '& fieldset': { borderColor: '#2f3336' },
+                    '&:hover fieldset': { borderColor: '#1d9bf0' },
+                    '&.Mui-focused fieldset': { borderColor: '#1d9bf0' }
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: '#71767b',
+                    '&.Mui-focused': { color: '#1d9bf0' }
+                  }
+                }}
+              />
+            )}
+          </InputMask>
           <TextField
             fullWidth
-            label="Telefone"
-            value={formData.telefone}
-            onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+            label="Email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             margin="normal"
             required
             sx={{
@@ -258,6 +415,49 @@ const BarbersPage: React.FC = () => {
               }
             }}
           />
+          <Box sx={{ mt: 2 }}>
+            <input
+              accept="image/*"
+              style={{ display: 'none' }}
+              id="foto-barbeiro"
+              type="file"
+              onChange={handleImageUpload}
+            />
+            <label htmlFor="foto-barbeiro">
+              <Button
+                variant="outlined"
+                component="span"
+                sx={{ mb: 2 }}
+              >
+                {selectedBarber ? 'Alterar Foto' : 'Adicionar Foto'}
+              </Button>
+            </label>
+            {selectedBarber && selectedBarber.foto && (
+              <Box sx={{ mt: 1, position: 'relative' }}>
+                <img
+                  src={selectedBarber.foto}
+                  alt="Foto do barbeiro"
+                  onError={(e) => {
+                    console.error('Erro ao carregar imagem:', e);
+                    console.log('URL da imagem que falhou:', selectedBarber.foto);
+                    // Tentar recarregar a imagem com a URL completa
+                    const img = e.target as HTMLImageElement;
+                    if (img && selectedBarber.foto) {
+                      img.src = selectedBarber.foto;
+                    }
+                  }}
+                  style={{ 
+                    width: 100, 
+                    height: 100, 
+                    borderRadius: '50%', 
+                    objectFit: 'cover',
+                    display: 'block'
+                  }}
+                  crossOrigin="anonymous"
+                />
+              </Box>
+            )}
+          </Box>
         </DialogContent>
         <DialogActions sx={{ borderTop: '1px solid #2f3336', p: 2 }}>
           <Button
