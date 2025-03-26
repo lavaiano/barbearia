@@ -154,23 +154,5 @@ export const theme = createTheme({
         },
       },
     },
-    MuiCalendarPicker: {
-      styleOverrides: {
-        root: {
-          backgroundColor: '#15202b',
-          color: '#e7e9ea',
-          '& .MuiPickersCalendarHeader-root': {
-            color: '#e7e9ea',
-          },
-        },
-      },
-    },
-    MuiPickersCalendarHeader: {
-      styleOverrides: {
-        root: {
-          color: '#e7e9ea',
-        },
-      },
-    },
   },
 }); 

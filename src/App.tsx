@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './contexts/AuthContext';
 import AdminPage from './pages/AdminPage';
 import LoginPage from './pages/LoginPage';
 import LandingPage from './pages/LandingPage';
@@ -9,7 +8,6 @@ import ServicesPage from './pages/ServicesPage';
 import ReportsPage from './pages/ReportsPage';
 
 function App() {
-  const { user } = useAuth();
 
   return (
     <Routes>

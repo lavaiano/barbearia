@@ -20,9 +20,6 @@ import {
   Alert,
   Paper
 } from '@mui/material';
-import { DatePicker, TimePicker } from '@mui/x-date-pickers';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import ptBR from 'date-fns/locale/pt-BR';
 import { supabase } from '../config/supabaseClient';
 import { format, addDays, isSameDay, isAfter, startOfDay, parseISO } from 'date-fns';
@@ -48,12 +45,6 @@ interface Horario {
   disponivel: boolean;
 }
 
-interface AgendamentoExistente {
-  data: string;
-  barbeiro_id: string;
-  servico_id: string;
-}
-
 const steps = ['Selecionar Serviço', 'Escolher Barbeiro', 'Data e Hora', 'Seus Dados'];
 
 const HORARIOS_PADRAO = [
@@ -62,7 +53,6 @@ const HORARIOS_PADRAO = [
   '16:00', '16:30', '17:00', '17:30', '18:00'
 ];
 
-const DIAS_SEMANA = [1, 2, 3, 4, 5, 6]; // Segunda à Sábado (1-6)
 
 const formatPhone = (value: string) => {
   const numbers = value.replace(/\D/g, '');
@@ -217,7 +207,6 @@ const SchedulingPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [horariosDisponiveis, setHorariosDisponiveis] = useState<Horario[]>([]);
-  const [datasDesabilitadas, setDatasDesabilitadas] = useState<Date[]>([]);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [agendamentoConcluido, setAgendamentoConcluido] = useState<{
     data: string;
