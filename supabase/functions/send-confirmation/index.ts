@@ -1,17 +1,58 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { Twilio } from 'https://esm.sh/twilio'
 
 // Configurações do Twilio
 const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
 const authToken = Deno.env.get('TWILIO_AUTH_TOKEN')
 const twilioWhatsappNumber = Deno.env.get('TWILIO_WHATSAPP_NUMBER')
-const client = new Twilio(accountSid, authToken)
 
 // Configurações do Supabase
 const supabaseUrl = Deno.env.get('SUPABASE_URL')
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const supabase = createClient(supabaseUrl, supabaseKey)
+
+// Função para enviar mensagem via Twilio
+async function sendTwilioMessage(to: string, body: string) {
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
+  const auth = btoa(`${accountSid}:${authToken}`)
+
+  // Limpar o número de qualquer formatação e garantir código do Brasil
+  const cleanNumber = to.replace(/\D/g, '')
+  const formattedTo = cleanNumber.startsWith('55') ? cleanNumber : `55${cleanNumber}`
+  
+  // Usar o número do sandbox do Twilio
+  const formattedFrom = '+14155238886' // Número padrão do sandbox
+
+  const formData = new URLSearchParams()
+  formData.append('To', `whatsapp:+${formattedTo}`)
+  formData.append('From', `whatsapp:${formattedFrom}`)
+  formData.append('Body', body)
+
+  console.log('Enviando para:', `whatsapp:+${formattedTo}`)
+  console.log('Enviando de:', `whatsapp:${formattedFrom}`)
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      const errorData = await response.text()
+      console.error('Resposta do Twilio:', errorData)
+      throw new Error(`Twilio API error: ${response.status} ${response.statusText} - ${errorData}`)
+    }
+
+    return response.json()
+  } catch (error) {
+    console.error('Erro completo:', error)
+    throw error
+  }
+}
 
 serve(async () => {
   try {
@@ -51,25 +92,23 @@ serve(async () => {
 
       try {
         // Enviar mensagem para o cliente
-        await client.messages.create({
-          body: clientMessage,
-          from: `whatsapp:${twilioWhatsappNumber}`,
-          to: `whatsapp:+${appointment.telefone_cliente.replace(/\D/g, '')}`
-        })
+        await sendTwilioMessage(
+          appointment.telefone_cliente.replace(/\D/g, ''),
+          clientMessage
+        )
 
         // Enviar mensagem para o barbeiro
-        await client.messages.create({
-          body: barberMessage,
-          from: `whatsapp:${twilioWhatsappNumber}`,
-          to: `whatsapp:+${appointment.barbeiros.telefone.replace(/\D/g, '')}`
-        })
+        await sendTwilioMessage(
+          appointment.barbeiros.telefone.replace(/\D/g, ''),
+          barberMessage
+        )
 
         // Atualizar o contador de tentativas
         await supabase
           .from('agendamentos')
           .update({
             ultima_confirmacao: new Date().toISOString(),
-            tentativas_confirmacao: appointment.tentativas_confirmacao + 1
+            tentativas_confirmacao: (appointment.tentativas_confirmacao || 0) + 1
           })
           .eq('id', appointment.id)
 
